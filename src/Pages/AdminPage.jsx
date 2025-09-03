@@ -1,3 +1,4 @@
+// src/Pages/AdminPage.jsx
 import { useState, useEffect } from "react";
 import { registerForPushNotifications, onMessageListener } from "../firebaseConfig";
 
@@ -8,6 +9,16 @@ export default function AdminPage({ onLogout }) {
   const [suspiciousMessage, setSuspiciousMessage] = useState("");
 
   const BASE_URL = "https://els-backend-43ta.onrender.com";
+
+  // Helper to format Firestore timestamp
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return "Unknown date/time";
+    if (timestamp.seconds) {
+      return new Date(timestamp.seconds * 1000).toLocaleString();
+    }
+    // fallback if already a JS Date or string
+    return new Date(timestamp).toLocaleString();
+  };
 
   // Fetch alerts from backend
   const fetchAlerts = async () => {
@@ -22,8 +33,6 @@ export default function AdminPage({ onLogout }) {
 
   useEffect(() => {
     fetchAlerts();
-
-    // Register FCM token for Admin (optional, can receive push too)
     registerForPushNotifications();
 
     // Listen for incoming FCM messages
@@ -44,7 +53,7 @@ export default function AdminPage({ onLogout }) {
       });
       const data = await res.json();
       if (data.success) {
-        fetchAlerts(); // Refresh alert list
+        fetchAlerts();
         setSuspiciousMessage("");
         setModalOpen(false);
         alert("Alert sent successfully!");
@@ -60,19 +69,18 @@ export default function AdminPage({ onLogout }) {
   };
 
   const handlePanic = () => {
-  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
 
-  // Play panic audio
-  const audio = new Audio("/pani.mp3");
-  audio.play();
+    // Play panic audio
+    const audio = new Audio("/pani.mp3");
+    audio.play();
 
-  // Send alert to backend
-  sendAlert(
-    "panic",
-    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-  );
-};
-
+    // Send alert
+    sendAlert(
+      "panic",
+      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+    );
+  };
 
   const handleSuspicious = () => {
     if (!suspiciousMessage.trim()) {
@@ -131,6 +139,7 @@ export default function AdminPage({ onLogout }) {
           </button>
         </div>
 
+        {/* Alert List */}
         <div className="mt-6 text-left">
           <h2 className="text-xl font-semibold mb-2">Alert Log</h2>
           {alerts.length === 0 ? (
@@ -147,7 +156,7 @@ export default function AdminPage({ onLogout }) {
                   <p className="font-semibold">{alert.name}</p>
                   <p className="text-sm text-gray-700">{alert.message}</p>
                   <p className="text-xs text-gray-500">
-                    {new Date(alert.createdAt?.seconds * 1000).toLocaleString()}
+                    {formatDateTime(alert.createdAt)}
                   </p>
                   <p className="text-sm font-medium">
                     Type: {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
