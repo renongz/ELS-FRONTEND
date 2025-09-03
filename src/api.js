@@ -1,43 +1,31 @@
 // src/api.js
-import axios from "axios";
+const BASE_URL = "https://els-backend-43ta.onrender.com";
 
-// Replace with your backend URL
-const BASE_URL = "http://localhost:5000";
+export const registerToken = async (token) => {
+  return fetch(`${BASE_URL}/api/register-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+};
 
-// Fetch all alerts (panic + suspicious)
+export const sendAlert = async ({ type, message, name }) => {
+  return fetch(`${BASE_URL}/api/send-alert`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, message, name }),
+  });
+};
+
 export const fetchAlerts = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/alerts`);
-    return response.data;
-  } catch (err) {
-    console.error("Error fetching alerts:", err);
-    return [];
-  }
+  const res = await fetch(`${BASE_URL}/api/alerts`);
+  return res.json();
 };
 
-// Unsubscribe the current device from receiving FCM notifications
 export const unsubscribeDevice = async (token) => {
-  try {
-    await axios.post(`${BASE_URL}/unsubscribe`, { token });
-    console.log("Device unsubscribed successfully.");
-  } catch (err) {
-    console.error("Error unsubscribing device:", err);
-  }
-};
-
-// Optional: trigger panic or suspicious alert (for admin)
-export const sendPanicAlert = async () => {
-  try {
-    await axios.post(`${BASE_URL}/alert/panic`);
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-export const sendSuspiciousAlert = async (message) => {
-  try {
-    await axios.post(`${BASE_URL}/alert/suspicious`, { message });
-  } catch (err) {
-    console.error(err);
-  }
+  return fetch(`${BASE_URL}/api/unsubscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
 };
