@@ -60,12 +60,19 @@ export default function AdminPage({ onLogout }) {
   };
 
   const handlePanic = () => {
-    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
-    sendAlert(
-      "panic",
-      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-    );
-  };
+  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+
+  // Play panic audio
+  const audio = new Audio("/pani.mp3");
+  audio.play();
+
+  // Send alert to backend
+  sendAlert(
+    "panic",
+    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+  );
+};
+
 
   const handleSuspicious = () => {
     if (!suspiciousMessage.trim()) {
