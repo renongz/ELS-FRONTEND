@@ -36,7 +36,6 @@ export default function AdminPage({ onLogout }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, name: "Admin", message }),
       });
-
       if (res.ok) {
         fetchAlerts();
         setSuspiciousMessage("");
@@ -55,13 +54,10 @@ export default function AdminPage({ onLogout }) {
 
   const handlePanic = () => {
     if (!window.confirm("Send Lockdown Alert to all devices?")) return;
-
     setPanicDisabled(true);
     setTimeout(() => setPanicDisabled(false), 300000);
-
     const audio = new Audio("/pani.mp3");
     audio.play();
-
     sendAlert(
       "panic",
       "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
@@ -79,10 +75,8 @@ export default function AdminPage({ onLogout }) {
 
   const handleClear = async () => {
     if (!window.confirm("Clear all alerts?")) return;
-
     setClearDisabled(true);
     setTimeout(() => setClearDisabled(false), 300000);
-
     try {
       await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
       fetchAlerts();
@@ -96,12 +90,10 @@ export default function AdminPage({ onLogout }) {
   useEffect(() => {
     fetchAlerts();
     registerForPushNotifications();
-
     onMessageListener((payload) => {
       fetchAlerts();
       alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
     });
-
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.type === "play-sound") {
         const audio = new Audio(event.data.sound);
@@ -110,64 +102,66 @@ export default function AdminPage({ onLogout }) {
     });
   }, []);
 
-  return (
-    <div className="min-h-screen flex flex-col bg-blue-50 p-4">
+    return (
+    <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
       {/* Header */}
-      <header className="flex items-center justify-between bg-white shadow-lg rounded-xl p-4 mb-6">
+      <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
         <div className="flex items-center space-x-4">
-          <img src="/logo.png" alt="School Logo" className="w-12 h-12 object-contain" />
+          {/* Logo placeholder */}
+          <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+            LOGO
+          </div>
+          {/* School & System Name */}
           <div>
             <h1 className="text-2xl font-bold text-red-600">Belvedere British School</h1>
-            <p className="text-sm font-medium text-gray-700">Emergency Lockdown System</p>
+            <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
           </div>
         </div>
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">ADMIN PANEL</h2>
-        </div>
+        <button
+          onClick={onLogout}
+          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+        >
+          Logout
+        </button>
       </header>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="flex w-full max-w-6xl space-x-6">
-        {/* Left column: Buttons */}
-        <div className="flex flex-col space-y-4 w-1/3 bg-white rounded-2xl shadow-lg p-6">
+        {/* Left column: Buttons Panel */}
+        <div className="flex flex-col space-y-4 w-1/3 bg-white rounded-xl shadow-lg p-6">
           <button
             disabled={panicDisabled || loading}
             onClick={handlePanic}
-            className="px-6 py-6 bg-red-600 text-white font-bold text-lg rounded-2xl hover:bg-red-700 disabled:opacity-50 transition duration-200"
+            className="px-6 py-6 bg-red-600 text-white font-bold text-lg rounded-xl hover:bg-red-700 disabled:opacity-50"
           >
             Panic Alert
           </button>
 
-          <button
-            onClick={() => setModalOpen(true)}
-            className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-xl hover:bg-yellow-600 text-sm transition duration-200"
-          >
-            Send Suspicious Alert
-          </button>
+          <div className="flex flex-col space-y-2 mt-4">
+            <button
+              onClick={() => setModalOpen(true)}
+              className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 text-sm"
+            >
+              Send Suspicious Alert
+            </button>
 
-          <button
-            disabled={clearDisabled}
-            onClick={handleClear}
-            className="px-4 py-2 bg-gray-400 text-white font-semibold rounded-xl hover:bg-gray-500 text-sm transition duration-200"
-          >
-            Clear Alerts
-          </button>
-
-          <button
-            onClick={onLogout}
-            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 text-sm transition duration-200"
-          >
-            Log Out
-          </button>
+            <button
+              disabled={clearDisabled}
+              onClick={handleClear}
+              className="px-4 py-2 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 text-sm"
+            >
+              Clear Alerts
+            </button>
+          </div>
         </div>
         {/* Right column: Alert Log Table */}
-        <div className="w-2/3 bg-white rounded-2xl shadow-lg p-6 overflow-auto max-h-[600px]">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Alert Log</h2>
+        <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
+          <h2 className="text-xl font-semibold mb-4 text-red-600">Alert Log</h2>
           {alerts.length === 0 ? (
             <p className="text-gray-500">No alerts yet.</p>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-xl">
-              <thead className="bg-gray-100">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
@@ -175,16 +169,16 @@ export default function AdminPage({ onLogout }) {
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {alerts.map((alert) => (
                   <tr
                     key={alert.id}
                     className={
                       alert.type === "panic"
-                        ? "bg-red-100 hover:bg-red-200 transition duration-200"
+                        ? "bg-red-100"
                         : alert.type === "suspicious"
-                        ? "bg-yellow-100 hover:bg-yellow-200 transition duration-200"
-                        : "bg-white hover:bg-gray-100 transition duration-200"
+                        ? "bg-yellow-100"
+                        : "bg-white"
                     }
                   >
                     <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
@@ -204,24 +198,24 @@ export default function AdminPage({ onLogout }) {
       {/* Suspicious Alert Modal */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Suspicious Alert</h2>
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm text-center">
+            <h2 className="text-2xl font-bold mb-4 text-red-600">Suspicious Alert</h2>
             <textarea
               value={suspiciousMessage}
               onChange={(e) => setSuspiciousMessage(e.target.value)}
               placeholder="Enter suspicious message"
-              className="p-2 border rounded w-full mb-4 resize-none"
+              className="p-2 border rounded w-full mb-4"
             />
             <div className="flex justify-between">
               <button
                 onClick={handleSuspicious}
-                className="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition duration-200"
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
               >
                 Send
               </button>
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 bg-gray-400 text-white rounded-xl hover:bg-gray-500 transition duration-200"
+                className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500"
               >
                 Cancel
               </button>
