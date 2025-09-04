@@ -36,23 +36,29 @@ export default function StudentPage({ onLogout, loggedInUser }) {
   };
 
     useEffect(() => {
+  fetchAlerts();
+  registerForPushNotifications(); // register FCM token
+
+  // Foreground push listener
+  const unsubscribeOnMessage = onMessageListener((payload) => {
+    alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
     fetchAlerts();
-    registerForPushNotifications(); // register FCM token
 
-    onMessageListener((payload) => {
-      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-      fetchAlerts();
+    // Play sound if it's a panic alert
+    if (
+      payload?.data?.type === "panic" ||
+      payload?.notification?.title?.toLowerCase().includes("lockdown")
+    ) {
+      const audio = new Audio("/pani.mp3");
+      audio.play().catch((err) => console.error("Audio play failed:", err));
+    }
+  });
 
-      // Play sound if it's a panic alert
-      if (payload?.data?.type === "panic" || payload?.notification?.title?.toLowerCase().includes("lockdown")) {
-        const audio = new Audio("/pani.mp3");
-        audio.play().catch((err) => console.error("Audio play failed:", err));
-      }
-    });
+  return () => {
+    if (unsubscribeOnMessage) unsubscribeOnMessage();
+  };
+}, []);
 
-    const interval = setInterval(fetchAlerts, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">

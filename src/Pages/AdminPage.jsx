@@ -91,9 +91,6 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   fetchAlerts();
   registerForPushNotifications();
 
-  // Automatically refresh alerts every 2 seconds
-  const interval = setInterval(fetchAlerts, 2000);
-
   // Listen for foreground push messages
   const unsubscribeOnMessage = onMessageListener((payload) => {
     // Play sound if panic alert
@@ -106,7 +103,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
     // Show notification alert
     alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
     
-    // Refresh the alert list
+    // Refresh the alert list only when a new alert is received
     fetchAlerts();
   });
 
@@ -121,11 +118,11 @@ export default function AdminPage({ onLogout, loggedInUser }) {
 
   // Cleanup on unmount
   return () => {
-    clearInterval(interval);
     navigator.serviceWorker.removeEventListener("message", handleSWMessage);
     if (unsubscribeOnMessage) unsubscribeOnMessage();
   };
 }, []);
+
 
 
 
