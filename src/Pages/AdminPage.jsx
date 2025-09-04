@@ -138,7 +138,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
         <img
           src="/school_logo.png"
           alt="School Logo"
-          className="w-16 h-16 rounded-full object-cover"
+          className="w-16 h-16 " ///rounded-full object-cover
         />
         {/* School & System Name */}
         <div>

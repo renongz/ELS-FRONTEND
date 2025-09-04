@@ -71,7 +71,7 @@ export default function MainPage() {
         <img
           src="/school_logo.png"
           alt="School Logo"
-          className="w-24 h-24 rounded-full object-cover mb-4 shadow-md"
+          className="w-24 h-24 "
         />
         <h1 className="text-3xl font-bold text-red-600 text-center">
           Belvedere British School
