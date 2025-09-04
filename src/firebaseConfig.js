@@ -1,6 +1,7 @@
 // src/firebaseConfig.js
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getFirestore } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,6 +15,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore
+const db = getFirestore(app);
+
+// Initialize Firebase Messaging
 const messaging = getMessaging(app);
 
 /**
@@ -28,10 +34,8 @@ export const registerForPushNotifications = async () => {
       return;
     }
 
-    // Register service worker for background notifications
     const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
 
-    // Get FCM token
     const token = await getToken(messaging, {
       vapidKey: "BE0QKARlNeMYBzuY_7mVGVb-euMH0sJhbSaGHoj7lRTkQEms4IbM9T9SHezhUS5Z0q1GGACyp1WQhe7grGT_yRE",
       serviceWorkerRegistration: registration,
@@ -41,7 +45,6 @@ export const registerForPushNotifications = async () => {
 
     localStorage.setItem("fcm_token", token);
 
-    // Send token to backend
     await fetch("https://els-backend-43ta.onrender.com/api/register-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -65,4 +68,4 @@ export const onMessageListener = (callback) => {
   });
 };
 
-export { messaging };
+export { messaging, db };
