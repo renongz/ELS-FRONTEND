@@ -10,17 +10,12 @@ export default function AdminPage({ onLogout }) {
 
   const BASE_URL = "https://els-backend-43ta.onrender.com";
 
-  // Helper to format Firestore timestamp
   const formatDateTime = (timestamp) => {
     if (!timestamp) return "Unknown date/time";
-    if (timestamp.seconds) {
-      return new Date(timestamp.seconds * 1000).toLocaleString();
-    }
-    // fallback if already a JS Date or string
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleString();
     return new Date(timestamp).toLocaleString();
   };
 
-  // Fetch alerts from backend
   const fetchAlerts = async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/alerts`);
@@ -31,18 +26,6 @@ export default function AdminPage({ onLogout }) {
     }
   };
 
-  useEffect(() => {
-    fetchAlerts();
-    registerForPushNotifications();
-
-    // Listen for incoming FCM messages
-    onMessageListener((payload) => {
-      console.log("FCM message received:", payload);
-      fetchAlerts(); // Update alert list immediately
-      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-    });
-  }, []);
-
   const sendAlert = async (type, message) => {
     setLoading(true);
     try {
@@ -51,14 +34,22 @@ export default function AdminPage({ onLogout }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, name: "Admin", message }),
       });
-      const data = await res.json();
-      if (data.success) {
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
+
+      if (res.ok) {
         fetchAlerts();
         setSuspiciousMessage("");
         setModalOpen(false);
         alert("Alert sent successfully!");
       } else {
-        alert("Failed to send alert");
+        console.error("Failed to send alert:", data);
+        alert("Failed to send alert. Check backend logs.");
       }
     } catch (err) {
       console.error("Error sending alert:", err);
@@ -71,11 +62,10 @@ export default function AdminPage({ onLogout }) {
   const handlePanic = () => {
     if (!window.confirm("Send Lockdown Alert to all devices?")) return;
 
-    // Play panic audio
+    // Play panic audio immediately
     const audio = new Audio("/pani.mp3");
     audio.play();
 
-    // Send alert
     sendAlert(
       "panic",
       "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
@@ -102,6 +92,23 @@ export default function AdminPage({ onLogout }) {
       alert("Failed to clear alerts");
     }
   };
+
+  useEffect(() => {
+    fetchAlerts();
+    registerForPushNotifications();
+
+    // Listen for foreground messages
+    onMessageListener((payload) => {
+      console.log("FCM message received:", payload);
+      fetchAlerts();
+
+      // Play alert sound
+      const audio = new Audio("/pani.mp3");
+      audio.play();
+
+      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+    });
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
