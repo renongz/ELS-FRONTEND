@@ -91,16 +91,26 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   fetchAlerts();
   registerForPushNotifications();
 
-  // Set interval to automatically refresh alerts every 2 seconds
+  // Automatically refresh alerts every 2 seconds
   const interval = setInterval(fetchAlerts, 2000);
 
   // Listen for foreground push messages
   const unsubscribeOnMessage = onMessageListener((payload) => {
-    fetchAlerts();
+    // Play sound if panic alert
+    const alertType = payload.data?.type;
+    if (alertType === "panic") {
+      const audio = new Audio("/pani.mp3"); // must exist in public/
+      audio.play().catch(err => console.error("Audio play failed", err));
+    }
+
+    // Show notification alert
     alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+    
+    // Refresh the alert list
+    fetchAlerts();
   });
 
-  // Listen for service worker messages (play sound)
+  // Listen for service worker messages (optional)
   const handleSWMessage = (event) => {
     if (event.data?.type === "play-sound") {
       const audio = new Audio(event.data.sound);
@@ -113,10 +123,10 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   return () => {
     clearInterval(interval);
     navigator.serviceWorker.removeEventListener("message", handleSWMessage);
-    // If your onMessageListener returns unsubscribe, call it here
     if (unsubscribeOnMessage) unsubscribeOnMessage();
   };
 }, []);
+
 
 
   return (
