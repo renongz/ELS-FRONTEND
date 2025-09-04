@@ -161,33 +161,36 @@ const handleClear = async () => {
         </div>
 
         {/* Alert List */}
-        <div className="mt-6 text-left">
-          <h2 className="text-xl font-semibold mb-2">Alert Log</h2>
-          {alerts.length === 0 ? (
+          <div className="mt-6 text-left">
+            <h2 className="text-xl font-semibold mb-2">Alert Log</h2>
+            {alerts.length === 0 ? (
             <p className="text-gray-500">No alerts yet.</p>
-          ) : (
+            ) : (
             <ul className="space-y-2">
-              {alerts.map((alert) => (
-                <li
-                  key={alert.id}
-                  className={`p-3 rounded ${
-                    alert.type === "panic" ? "bg-red-100" : "bg-yellow-100"
-                  }`}
-                >
-                  <p className="font-semibold">{alert.name}</p>
-                  <p className="text-sm text-gray-700">{alert.message}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatDateTime(alert.createdAt)}
-                  </p>
-                  <p className="text-sm font-medium">
-                    Type: {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
-                  </p>
-                </li>
-              ))}
+            {alerts.map((alert) => (
+            <li
+              key={alert.id}
+              className="p-3 rounded bg-white shadow-sm border"
+              >
+              <p>
+              <span className="font-semibold">Name:</span> {alert.name}
+              </p>
+              <p>
+              <span className="font-semibold">Message:</span> {alert.message}
+              </p>
+              <p>
+              <span className="font-semibold">Date and Time:</span> {formatDateTime(alert.createdAt)}
+              </p>
+              <p>
+              <span className="font-semibold">Type of Alert:</span>{" "}
+              {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
+              </p>
+            </li>
+            ))}
             </ul>
-          )}
+            )}
         </div>
-      </div>
+        </div>   
 
       {/* Suspicious Alert Modal */}
       {modalOpen && (
