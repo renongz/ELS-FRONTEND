@@ -37,20 +37,12 @@ export default function AdminPage({ onLogout }) {
         body: JSON.stringify({ type, name: "Admin", message }),
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-
       if (res.ok) {
         fetchAlerts();
         setSuspiciousMessage("");
         setModalOpen(false);
         alert("Alert sent successfully!");
       } else {
-        console.error("Failed to send alert:", data);
         alert("Failed to send alert. Check backend logs.");
       }
     } catch (err) {
@@ -61,21 +53,20 @@ export default function AdminPage({ onLogout }) {
     }
   };
 
-  // Panic alert handler
-const handlePanic = () => {
-  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+  const handlePanic = () => {
+    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
 
-  setPanicDisabled(true); // disable immediately
-  setTimeout(() => setPanicDisabled(false), 300000); // re-enable after 5 min
+    setPanicDisabled(true);
+    setTimeout(() => setPanicDisabled(false), 300000);
 
-  const audio = new Audio("/pani.mp3");
-  audio.play();
+    const audio = new Audio("/pani.mp3");
+    audio.play();
 
-  sendAlert(
-    "panic",
-    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-  );
-};
+    sendAlert(
+      "panic",
+      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+    );
+  };
 
   const handleSuspicious = () => {
     if (!suspiciousMessage.trim()) {
@@ -86,111 +77,120 @@ const handlePanic = () => {
     sendAlert("suspicious", suspiciousMessage);
   };
 
-  // Clear alerts handler
-const handleClear = async () => {
-  if (!window.confirm("Clear all alerts?")) return;
+  const handleClear = async () => {
+    if (!window.confirm("Clear all alerts?")) return;
 
-  setClearDisabled(true); // disable immediately
-  setTimeout(() => setClearDisabled(false), 300000); // re-enable after 5 min
+    setClearDisabled(true);
+    setTimeout(() => setClearDisabled(false), 300000);
 
-  try {
-    await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
-    fetchAlerts();
-    alert("Alerts cleared");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to clear alerts");
-  }
-};
+    try {
+      await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
+      fetchAlerts();
+      alert("Alerts cleared");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to clear alerts");
+    }
+  };
 
   useEffect(() => {
-  fetchAlerts();
-  registerForPushNotifications();
-
-  // Listen for foreground messages
-  onMessageListener((payload) => {
     fetchAlerts();
-    alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-  });
+    registerForPushNotifications();
 
-  // Listen for service worker messages (play sound)
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'play-sound') {
-      const audio = new Audio(event.data.sound);
-      audio.play();
-    }
-  });
-}, []);
+    onMessageListener((payload) => {
+      fetchAlerts();
+      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+    });
 
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "play-sound") {
+        const audio = new Audio(event.data.sound);
+        audio.play();
+      }
+    });
+  }, []);
 
-  return (
+    return (
     <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold mb-6 text-red-600">Admin Panel</h1>
+      <h1 className="text-3xl font-bold mb-6 text-red-600">Admin Panel</h1>
 
-        <div className="flex flex-col space-y-4 mb-4">
-          <button
-            disabled={panicDisabled || loading}
-             onClick={handlePanic}
-              className="px-6 py-3 bg-red-600 text-white font-semibold rounded hover:bg-red-700 disabled:opacity-50"
-              >
-               Panic Alert
-          </button>
+      <div className="flex w-full max-w-6xl space-x-6">
+        {/* Left column: Buttons */}
+        {/* Left column: Buttons */}
+<div className="flex flex-col space-y-4 w-1/3 bg-white rounded-xl shadow-lg p-6">
+  <button
+    disabled={panicDisabled || loading}
+    onClick={handlePanic}
+    className="px-6 py-6 bg-red-600 text-white font-bold text-lg rounded hover:bg-red-700 disabled:opacity-50"
+  >
+    Panic Alert
+  </button>
 
-          <button
-            onClick={() => setModalOpen(true)}
-            className="px-6 py-3 bg-yellow-500 text-white font-semibold rounded hover:bg-yellow-600"
-          >
-            Send Suspicious Alert
-          </button>
+  <button
+    onClick={() => setModalOpen(true)}
+    className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded hover:bg-yellow-600 text-sm"
+  >
+    Send Suspicious Alert
+  </button>
 
-          <button
-            disabled={clearDisabled}
-            onClick={handleClear}
-            className="px-6 py-3 bg-gray-400 text-white font-semibold rounded hover:bg-gray-500 disabled:opacity-50"
-            >
-            Clear Alerts
-          </button>
+  <button
+    disabled={clearDisabled}
+    onClick={handleClear}
+    className="px-4 py-2 bg-gray-400 text-white font-semibold rounded hover:bg-gray-500 text-sm"
+  >
+    Clear Alerts
+  </button>
 
-          <button
-            onClick={onLogout}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700"
-          >
-            Log Out
-          </button>
-        </div>
+  <button
+    onClick={onLogout}
+    className="px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 text-sm"
+  >
+    Log Out
+  </button>
+</div>
 
-        {/* Alert List */}
-          <div className="mt-6 text-left">
-            <h2 className="text-xl font-semibold mb-2">Alert Log</h2>
-            {alerts.length === 0 ? (
+
+        {/* Right column: Alert Log Table */}
+        <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
+          <h2 className="text-xl font-semibold mb-4">Alert Log</h2>
+          {alerts.length === 0 ? (
             <p className="text-gray-500">No alerts yet.</p>
-            ) : (
-            <ul className="space-y-2">
-            {alerts.map((alert) => (
-            <li
-              key={alert.id}
-              className="p-3 rounded bg-white shadow-sm border"
-              >
-              <p>
-              <span className="font-semibold">Name:</span> {alert.name}
-              </p>
-              <p>
-              <span className="font-semibold">Message:</span> {alert.message}
-              </p>
-              <p>
-              <span className="font-semibold">Date and Time:</span> {formatDateTime(alert.createdAt)}
-              </p>
-              <p>
-              <span className="font-semibold">Type of Alert:</span>{" "}
-              {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
-              </p>
-            </li>
-            ))}
-            </ul>
-            )}
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date & Time</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+              {alerts.map((alert) => (
+                <tr
+                  key={alert.id}
+                  className={
+                    alert.type === "panic"
+                      ? "bg-red-100"
+                      : alert.type === "suspicious"
+                      ? "bg-yellow-100"
+                      : "bg-white"
+                    }
+                    >
+                      <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-800">{alert.message}</td>
+                      <td className="px-4 py-2 text-sm text-gray-800">{formatDateTime(alert.createdAt)}</td>
+                      <td className="px-4 py-2 text-sm font-semibold text-gray-800">
+                        {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
+                      </td>
+                </tr>
+                  ))}
+                </tbody>
+
+            </table>
+          )}
         </div>
-        </div>   
+      </div>
 
       {/* Suspicious Alert Modal */}
       {modalOpen && (
