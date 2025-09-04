@@ -14,21 +14,25 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Handle background messages
-messaging.onBackgroundMessage(function(payload) {
-  console.log('[firebase-messaging-sw.js] Background message received ', payload);
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] Background message received', payload);
 
-  const notificationTitle = payload.notification?.title || 'Alert';
-  const notificationOptions = {
-    body: payload.notification?.body || '',
+  const { title, body } = payload.notification || {};
+  const { type, sound } = payload.data || {};
+
+  // Show notification
+  self.registration.showNotification(title || 'Alert', {
+    body: body || '',
     icon: '/favicon.ico',
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-
-  // Play sound on all clients if supported
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({ type: 'play-sound', sound: '/pani.mp3' });
-    });
+    data: { type },
   });
+
+  // Play sound only for panic alerts
+  if (type === 'panic' && sound) {
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({ type: 'play-sound', sound });
+      });
+    });
+  }
 });

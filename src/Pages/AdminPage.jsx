@@ -7,6 +7,8 @@ export default function AdminPage({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [suspiciousMessage, setSuspiciousMessage] = useState("");
+  const [panicDisabled, setPanicDisabled] = useState(false);
+  const [clearDisabled, setClearDisabled] = useState(false);
 
   const BASE_URL = "https://els-backend-43ta.onrender.com";
 
@@ -59,18 +61,21 @@ export default function AdminPage({ onLogout }) {
     }
   };
 
-  const handlePanic = () => {
-    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+  // Panic alert handler
+const handlePanic = () => {
+  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
 
-    // Play panic audio immediately
-    const audio = new Audio("/pani.mp3");
-    audio.play();
+  setPanicDisabled(true); // disable immediately
+  setTimeout(() => setPanicDisabled(false), 300000); // re-enable after 5 min
 
-    sendAlert(
-      "panic",
-      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-    );
-  };
+  const audio = new Audio("/pani.mp3");
+  audio.play();
+
+  sendAlert(
+    "panic",
+    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+  );
+};
 
   const handleSuspicious = () => {
     if (!suspiciousMessage.trim()) {
@@ -81,34 +86,42 @@ export default function AdminPage({ onLogout }) {
     sendAlert("suspicious", suspiciousMessage);
   };
 
-  const handleClear = async () => {
-    if (!window.confirm("Clear all alerts?")) return;
-    try {
-      await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
-      fetchAlerts();
-      alert("Alerts cleared");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to clear alerts");
-    }
-  };
+  // Clear alerts handler
+const handleClear = async () => {
+  if (!window.confirm("Clear all alerts?")) return;
+
+  setClearDisabled(true); // disable immediately
+  setTimeout(() => setClearDisabled(false), 300000); // re-enable after 5 min
+
+  try {
+    await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
+    fetchAlerts();
+    alert("Alerts cleared");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to clear alerts");
+  }
+};
 
   useEffect(() => {
+  fetchAlerts();
+  registerForPushNotifications();
+
+  // Listen for foreground messages
+  onMessageListener((payload) => {
     fetchAlerts();
-    registerForPushNotifications();
+    alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+  });
 
-    // Listen for foreground messages
-    onMessageListener((payload) => {
-      console.log("FCM message received:", payload);
-      fetchAlerts();
-
-      // Play alert sound
-      const audio = new Audio("/pani.mp3");
+  // Listen for service worker messages (play sound)
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'play-sound') {
+      const audio = new Audio(event.data.sound);
       audio.play();
+    }
+  });
+}, []);
 
-      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-    });
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
@@ -117,11 +130,11 @@ export default function AdminPage({ onLogout }) {
 
         <div className="flex flex-col space-y-4 mb-4">
           <button
-            disabled={loading}
-            onClick={handlePanic}
-            className="px-6 py-3 bg-red-600 text-white font-semibold rounded hover:bg-red-700"
-          >
-            Panic Alert
+            disabled={panicDisabled || loading}
+             onClick={handlePanic}
+              className="px-6 py-3 bg-red-600 text-white font-semibold rounded hover:bg-red-700 disabled:opacity-50"
+              >
+               Panic Alert
           </button>
 
           <button
@@ -132,9 +145,10 @@ export default function AdminPage({ onLogout }) {
           </button>
 
           <button
+            disabled={clearDisabled}
             onClick={handleClear}
-            className="px-6 py-3 bg-gray-400 text-white font-semibold rounded hover:bg-gray-500"
-          >
+            className="px-6 py-3 bg-gray-400 text-white font-semibold rounded hover:bg-gray-500 disabled:opacity-50"
+            >
             Clear Alerts
           </button>
 
