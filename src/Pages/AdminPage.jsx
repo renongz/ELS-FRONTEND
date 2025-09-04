@@ -56,8 +56,8 @@ export default function AdminPage({ onLogout, loggedInUser }) {
     if (!window.confirm("Send Lockdown Alert to all devices?")) return;
     setPanicDisabled(true);
     setTimeout(() => setPanicDisabled(false), 300000);
-    const audio = new Audio("/pani.mp3");
-    audio.play();
+    //const audio = new Audio("/pani.mp3");
+    //audio.play();
     sendAlert(
       "panic",
       "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
