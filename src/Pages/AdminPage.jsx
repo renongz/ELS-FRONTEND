@@ -1,8 +1,8 @@
-// src/Pages/AdminPage.jsx
+// src/Pages/AdminPage.jsx (Batch 1)
 import { useState, useEffect } from "react";
 import { registerForPushNotifications, onMessageListener } from "../firebaseConfig";
 
-export default function AdminPage({ onLogout }) {
+export default function AdminPage({ onLogout, loggedInUser }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -88,42 +88,71 @@ export default function AdminPage({ onLogout }) {
   };
 
   useEffect(() => {
-    fetchAlerts();
-    registerForPushNotifications();
-    onMessageListener((payload) => {
-      fetchAlerts();
-      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-    });
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data?.type === "play-sound") {
-        const audio = new Audio(event.data.sound);
-        audio.play();
-      }
-    });
-  }, []);
+  fetchAlerts();
+  registerForPushNotifications();
 
-    return (
-    <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
-      {/* Header */}
-      <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
-        <div className="flex items-center space-x-4">
-          {/* Logo placeholder */}
-          <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-            LOGO
-          </div>
-          {/* School & System Name */}
-          <div>
-            <h1 className="text-2xl font-bold text-red-600">Belvedere British School</h1>
-            <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
-          </div>
+  // Set interval to automatically refresh alerts every 2 seconds
+  const interval = setInterval(fetchAlerts, 2000);
+
+  // Listen for foreground push messages
+  const unsubscribeOnMessage = onMessageListener((payload) => {
+    fetchAlerts();
+    alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+  });
+
+  // Listen for service worker messages (play sound)
+  const handleSWMessage = (event) => {
+    if (event.data?.type === "play-sound") {
+      const audio = new Audio(event.data.sound);
+      audio.play();
+    }
+  };
+  navigator.serviceWorker.addEventListener("message", handleSWMessage);
+
+  // Cleanup on unmount
+  return () => {
+    clearInterval(interval);
+    navigator.serviceWorker.removeEventListener("message", handleSWMessage);
+    // If your onMessageListener returns unsubscribe, call it here
+    if (unsubscribeOnMessage) unsubscribeOnMessage();
+  };
+}, []);
+
+
+  return (
+  <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
+    {/* Header */}
+    <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
+      <div className="flex items-center space-x-4">
+        {/* Logo */}
+        <img
+          src="/school_logo.png"
+          alt="School Logo"
+          className="w-16 h-16 rounded-full object-cover"
+        />
+        {/* School & System Name */}
+        <div>
+          <h1 className="text-2xl font-bold text-red-600">Belvedere British School</h1>
+          <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
         </div>
+      </div>
+
+      {/* Logout Button and Logged-in User */}
+      <div className="flex flex-col items-end">
         <button
           onClick={onLogout}
           className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
         >
           Logout
         </button>
-      </header>
+
+        {/* Logged-in user label */}
+        {loggedInUser && (
+          <span className="text-gray-700 text-sm mt-1">Logged in as: {loggedInUser}</span>
+        )}
+      </div>
+    </header>
+
 
       {/* Main Content */}
       <div className="flex w-full max-w-6xl space-x-6">
@@ -154,47 +183,60 @@ export default function AdminPage({ onLogout }) {
             </button>
           </div>
         </div>
-        {/* Right column: Alert Log Table */}
-        <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
-          <h2 className="text-xl font-semibold mb-4 text-red-600">Alert Log</h2>
-          {alerts.length === 0 ? (
-            <p className="text-gray-500">No alerts yet.</p>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date & Time</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {alerts.map((alert) => (
-                  <tr
-                    key={alert.id}
-                    className={
-                      alert.type === "panic"
-                        ? "bg-red-100"
-                        : alert.type === "suspicious"
-                        ? "bg-yellow-100"
-                        : "bg-white"
-                    }
-                  >
-                    <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-800">{alert.message}</td>
-                    <td className="px-4 py-2 text-sm text-gray-800">{formatDateTime(alert.createdAt)}</td>
-                    <td className="px-4 py-2 text-sm font-semibold text-gray-800">
-                      {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
 
+
+        {/* Right column: Alert Log Table */}
+                    <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-red-600">Alert Log</h2>
+                        <button
+                          onClick={fetchAlerts}
+                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      {alerts.length === 0 ? (
+                        <p className="text-gray-500">No alerts yet.</p>
+                      ) : (
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date & Time</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {alerts.map((alert) => (
+                              <tr
+                                key={alert.id}
+                                className={
+                                  alert.type === "panic"
+                                    ? "bg-red-100"
+                                    : alert.type === "suspicious"
+                                    ? "bg-yellow-100"
+                                    : "bg-white"
+                                }
+                              >
+                                <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{alert.message}</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{formatDateTime(alert.createdAt)}</td>
+                                <td className="px-4 py-2 text-sm font-semibold text-gray-800">
+                                  {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+
+        
+      </div>
       {/* Suspicious Alert Modal */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
