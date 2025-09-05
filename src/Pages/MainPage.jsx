@@ -73,7 +73,7 @@ export default function MainPage() {
           alt="School Logo"
           className="w-24 h-24 "
         />
-        <h1 className="text-3xl font-bold text-red-600 text-center">
+        <h1 className="text-3xl font-bold text-blue-600 text-center">
           Belvedere British School
         </h1>
         <p className="text-gray-700 font-semibold text-center">

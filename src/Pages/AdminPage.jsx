@@ -127,7 +127,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
 
 
   return (
-  <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
+  <div className="min-h-screen flex flex-col items-center bg-black p-4">
     {/* Header */}
     <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
       <div className="flex items-center space-x-4">
@@ -139,7 +139,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
         />
         {/* School & System Name */}
         <div>
-          <h1 className="text-2xl font-bold text-red-600">Belvedere British School</h1>
+          <h1 className="text-2xl font-bold text-blue-600">Belvedere British School</h1>
           <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
         </div>
       </div>
