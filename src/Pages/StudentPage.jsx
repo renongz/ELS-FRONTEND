@@ -137,21 +137,21 @@ export default function StudentPage({ onLogout, loggedInUser }) {
                   <td className="px-4 py-2">{alert.name}</td>
                   <td className="px-4 py-2">{alert.message}</td>
                   <td className="px-4 py-2">
-  {alert.createdAt
-    ? new Date(
-        alert.createdAt.seconds
-          ? alert.createdAt.seconds * 1000
-          : alert.createdAt
-      ).toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
-    : "Unknown"}
-</td>
+                      {alert.createdAt
+                        ? new Date(
+                            alert.createdAt.seconds
+                              ? alert.createdAt.seconds * 1000
+                              : alert.createdAt
+                          ).toLocaleString("en-GB", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })
+                        : "Unknown"}
+                    </td>
 
                   <td className="px-4 py-2 font-semibold">
                     {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}

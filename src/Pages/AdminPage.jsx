@@ -1,6 +1,7 @@
 // src/Pages/AdminPage.jsx (Batch 1)
 import { useState, useEffect } from "react";
 import { registerForPushNotifications, onMessageListener } from "../firebaseConfig";
+import ManageUsers from "./ManageUsers";///// new add for UsersPage
 
 export default function AdminPage({ onLogout, loggedInUser }) {
   const [alerts, setAlerts] = useState([]);
@@ -9,6 +10,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   const [suspiciousMessage, setSuspiciousMessage] = useState("");
   const [panicDisabled, setPanicDisabled] = useState(false);
   const [clearDisabled, setClearDisabled] = useState(false);
+  const [usersModalOpen, setUsersModalOpen] = useState(false); // cpmponents in adduserpage
 
   const BASE_URL = "https://els-backend-43ta.onrender.com";
 
@@ -29,49 +31,55 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   };
 
   const sendAlert = async (type, message) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${BASE_URL}/api/send-alert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, name: "Admin", message }),
-      });
-      if (res.ok) {
-        fetchAlerts();
-        setSuspiciousMessage("");
-        setModalOpen(false);
-        alert("Alert sent successfully!");
-      } else {
-        alert("Failed to send alert. Check backend logs.");
-      }
-    } catch (err) {
-      console.error("Error sending alert:", err);
-      alert("Error sending alert");
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const res = await fetch(`${BASE_URL}/api/send-alert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type,
+        name: loggedInUser || "Admin", // ✅ use the logged-in user
+        message,
+      }),
+    });
+    if (res.ok) {
+      fetchAlerts();
+      setSuspiciousMessage("");
+      setModalOpen(false);
+      alert("Alert sent successfully!");
+    } else {
+      alert("Failed to send alert. Check backend logs.");
     }
-  };
+  } catch (err) {
+    console.error("Error sending alert:", err);
+    alert("Error sending alert");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handlePanic = () => {
-    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
-    setPanicDisabled(true);
-    setTimeout(() => setPanicDisabled(false), 300000);
-    //const audio = new Audio("/pani.mp3");
-    //audio.play();
-    sendAlert(
-      "panic",
-      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-    );
-  };
+  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+  setPanicDisabled(true);
+  setTimeout(() => setPanicDisabled(false), 300000);
+
+  sendAlert(
+    "panic",
+    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+  );
+};
+
 
   const handleSuspicious = () => {
-    if (!suspiciousMessage.trim()) {
-      alert("Please enter a message for suspicious alert");
-      return;
-    }
-    if (!window.confirm("Send Suspicious Alert to all devices?")) return;
-    sendAlert("suspicious", suspiciousMessage);
-  };
+  if (!suspiciousMessage.trim()) {
+    alert("Please enter a message for suspicious alert");
+    return;
+  }
+  if (!window.confirm("Send Suspicious Alert to all devices?")) return;
+  sendAlert("suspicious", suspiciousMessage);
+};
+
 
   const handleClear = async () => {
     if (!window.confirm("Clear all alerts?")) return;
@@ -127,7 +135,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
 
 
   return (
-  <div className="min-h-screen flex flex-col items-center bg-black p-4">
+  <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
     {/* Header */}
     <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
       <div className="flex items-center space-x-4">
@@ -188,6 +196,15 @@ export default function AdminPage({ onLogout, loggedInUser }) {
             >
               Clear Alerts
             </button>
+
+              {/* Manage Users Button */}
+              <button
+                onClick={() => setUsersModalOpen(true)}
+                className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 text-sm mt-2"
+              >
+                Manage Users
+              </button>
+
           </div>
         </div>
 
@@ -272,6 +289,18 @@ export default function AdminPage({ onLogout, loggedInUser }) {
           </div>
         </div>
       )}
+     
+     
+     
+      {/* Manage Users Modal */}
+{usersModalOpen && <ManageUsers closeModal={() => setUsersModalOpen(false)} />}
     </div>
+
+
+
+
+
+
+
   );
 }
