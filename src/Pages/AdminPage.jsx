@@ -1,7 +1,9 @@
-// src/Pages/AdminPage.jsx (Batch 1)
+// src/Pages/AdminPage.jsx
 import { useState, useEffect } from "react";
 import { registerForPushNotifications, onMessageListener } from "../firebaseConfig";
-import ManageUsers from "./ManageUsers";///// new add for UsersPage
+import ManageUsers from "./ManageUsers"; // For UsersPage
+import { db } from "../firebaseConfig"; // Firestore instance
+import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 
 export default function AdminPage({ onLogout, loggedInUser }) {
   const [alerts, setAlerts] = useState([]);
@@ -10,7 +12,7 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   const [suspiciousMessage, setSuspiciousMessage] = useState("");
   const [panicDisabled, setPanicDisabled] = useState(false);
   const [clearDisabled, setClearDisabled] = useState(false);
-  const [usersModalOpen, setUsersModalOpen] = useState(false); // cpmponents in adduserpage
+  const [usersModalOpen, setUsersModalOpen] = useState(false);
 
   const BASE_URL = "https://els-backend-43ta.onrender.com";
 
@@ -31,60 +33,52 @@ export default function AdminPage({ onLogout, loggedInUser }) {
   };
 
   const sendAlert = async (type, message) => {
-  setLoading(true);
-  try {
-    const res = await fetch(`${BASE_URL}/api/send-alert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type,
-        name: loggedInUser || "Admin", // ✅ use the logged-in user
-        message,
-      }),
-    });
-    if (res.ok) {
-      fetchAlerts();
-      setSuspiciousMessage("");
-      setModalOpen(false);
-      alert("Alert sent successfully!");
-    } else {
-      alert("Failed to send alert. Check backend logs.");
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/send-alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name: loggedInUser || "Admin", message }),
+      });
+      if (res.ok) {
+        fetchAlerts();
+        setSuspiciousMessage("");
+        setModalOpen(false);
+        alert("Alert sent successfully!");
+      } else {
+        alert("Failed to send alert. Check backend logs.");
+      }
+    } catch (err) {
+      console.error("Error sending alert:", err);
+      alert("Error sending alert");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Error sending alert:", err);
-    alert("Error sending alert");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handlePanic = () => {
-  if (!window.confirm("Send Lockdown Alert to all devices?")) return;
-  setPanicDisabled(true);
-  setTimeout(() => setPanicDisabled(false), 300000);
-
-  sendAlert(
-    "panic",
-    "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-  );
-};
-
+    if (!window.confirm("Send Lockdown Alert to all devices?")) return;
+    setPanicDisabled(true);
+    setTimeout(() => setPanicDisabled(false), 300000); // 5 min cooldown
+    sendAlert(
+      "panic",
+      "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+    );
+  };
 
   const handleSuspicious = () => {
-  if (!suspiciousMessage.trim()) {
-    alert("Please enter a message for suspicious alert");
-    return;
-  }
-  if (!window.confirm("Send Suspicious Alert to all devices?")) return;
-  sendAlert("suspicious", suspiciousMessage);
-};
-
+    if (!suspiciousMessage.trim()) {
+      alert("Please enter a message for suspicious alert");
+      return;
+    }
+    if (!window.confirm("Send Suspicious Alert to all devices?")) return;
+    sendAlert("suspicious", suspiciousMessage);
+  };
 
   const handleClear = async () => {
     if (!window.confirm("Clear all alerts?")) return;
     setClearDisabled(true);
-    setTimeout(() => setClearDisabled(false), 300000);
+    setTimeout(() => setClearDisabled(false), 300000); // 5 min cooldown
     try {
       await fetch(`${BASE_URL}/api/clear-alerts`, { method: "POST" });
       fetchAlerts();
@@ -95,83 +89,110 @@ export default function AdminPage({ onLogout, loggedInUser }) {
     }
   };
 
+  // -----------------------------
+  // Push notifications & alerts
   useEffect(() => {
-  fetchAlerts();
-  registerForPushNotifications();
-
-  // Listen for foreground push messages
-  const unsubscribeOnMessage = onMessageListener((payload) => {
-    // Play sound if panic alert
-    const alertType = payload.data?.type;
-    if (alertType === "panic") {
-      const audio = new Audio("/pani.mp3"); // must exist in public/
-      audio.play().catch(err => console.error("Audio play failed", err));
-    }
-
-    // Show notification alert
-    alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
-    
-    // Refresh the alert list only when a new alert is received
     fetchAlerts();
-  });
+    registerForPushNotifications();
 
-  // Listen for service worker messages (optional)
-  const handleSWMessage = (event) => {
-    if (event.data?.type === "play-sound") {
-      const audio = new Audio(event.data.sound);
-      audio.play();
+    const unsubscribeOnMessage = onMessageListener((payload) => {
+      const alertType = payload.data?.type;
+      if (alertType === "panic") {
+        const audio = new Audio("/pani.mp3");
+        audio.play().catch((err) => console.error("Audio play failed", err));
+      }
+      alert(`New Alert: ${payload.notification?.title}\n${payload.notification?.body}`);
+      fetchAlerts();
+    });
+
+    const handleSWMessage = (event) => {
+      if (event.data?.type === "play-sound") {
+        const audio = new Audio(event.data.sound);
+        audio.play();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleSWMessage);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSWMessage);
+      if (unsubscribeOnMessage) unsubscribeOnMessage();
+    };
+  }, []);
+
+  // -----------------------------
+  // Auto logout on refresh/tab close
+  useEffect(() => {
+    if (!loggedInUser) return;
+
+    const unloadHandler = async () => {
+      try {
+        await fetch(`${BASE_URL}/api/set-login-state`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: loggedInUser, isLoggedIn: false }),
+        });
+      } catch (err) {
+        console.error("Failed to update login state:", err);
+      }
+    };
+
+    window.addEventListener("beforeunload", unloadHandler);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        unloadHandler();
+      }
+    });
+
+    return () => {
+      window.removeEventListener("beforeunload", unloadHandler);
+      document.removeEventListener("visibilitychange", unloadHandler);
+    };
+  }, [loggedInUser]);
+
+  // -----------------------------
+  // Logout button
+  const handleLogoutClick = async () => {
+    try {
+      await fetch(`${BASE_URL}/api/set-login-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loggedInUser, isLoggedIn: false }),
+      });
+    } catch (err) {
+      console.error("Error logging out:", err);
     }
+    onLogout();
   };
-  navigator.serviceWorker.addEventListener("message", handleSWMessage);
 
-  // Cleanup on unmount
-  return () => {
-    navigator.serviceWorker.removeEventListener("message", handleSWMessage);
-    if (unsubscribeOnMessage) unsubscribeOnMessage();
-  };
-}, []);
-
-
-
-
+  // -----------------------------
+  // JSX
   return (
-  <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
-    {/* Header */}
-    <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
-      <div className="flex items-center space-x-4">
-        {/* Logo */}
-        <img
-          src="/school_logo.png"
-          alt="School Logo"
-          className="w-16 h-16 " ///rounded-full object-cover
-        />
-        {/* School & System Name */}
-        <div>
-          <h1 className="text-2xl font-bold text-blue-600">Belvedere British School</h1>
-          <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
+    <div className="min-h-screen flex flex-col items-center bg-blue-50 p-4">
+      {/* Header */}
+      <header className="w-full max-w-6xl flex items-center justify-between bg-white rounded-xl shadow-lg p-4 mb-6">
+        <div className="flex items-center space-x-4">
+          <img src="/school_logo.png" alt="School Logo" className="w-16 h-16" />
+          <div>
+            <h1 className="text-2xl font-bold text-blue-600">Belvedere British School</h1>
+            <p className="text-sm text-gray-700 font-semibold">Emergency Lockdown System</p>
+          </div>
         </div>
-      </div>
-
-      {/* Logout Button and Logged-in User */}
-      <div className="flex flex-col items-end">
-        <button
-          onClick={onLogout}
-          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
-        >
-          Logout
-        </button>
-
-        {/* Logged-in user label */}
-        {loggedInUser && (
-          <span className="text-gray-700 text-sm mt-1">Logged in as: {loggedInUser}</span>
-        )}
-      </div>
-    </header>
-
+        <div className="flex flex-col items-end">
+          <button
+            onClick={handleLogoutClick}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+          >
+            Logout
+          </button>
+          {loggedInUser && (
+            <span className="text-gray-700 text-sm mt-1">Logged in as: {loggedInUser}</span>
+          )}
+        </div>
+      </header>
 
       {/* Main Content */}
       <div className="flex w-full max-w-6xl space-x-6">
-        {/* Left column: Buttons Panel */}
+        {/* Left column */}
         <div className="flex flex-col space-y-4 w-1/3 bg-white rounded-xl shadow-lg p-6">
           <button
             disabled={panicDisabled || loading}
@@ -180,7 +201,6 @@ export default function AdminPage({ onLogout, loggedInUser }) {
           >
             Panic Alert
           </button>
-
           <div className="flex flex-col space-y-2 mt-4">
             <button
               onClick={() => setModalOpen(true)}
@@ -188,7 +208,6 @@ export default function AdminPage({ onLogout, loggedInUser }) {
             >
               Send Suspicious Alert
             </button>
-
             <button
               disabled={clearDisabled}
               onClick={handleClear}
@@ -196,71 +215,65 @@ export default function AdminPage({ onLogout, loggedInUser }) {
             >
               Clear Alerts
             </button>
-
-              {/* Manage Users Button */}
-              <button
-                onClick={() => setUsersModalOpen(true)}
-                className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 text-sm mt-2"
-              >
-                Manage Users
-              </button>
-
+            <button
+              onClick={() => setUsersModalOpen(true)}
+              className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 text-sm mt-2"
+            >
+              Manage Users
+            </button>
           </div>
         </div>
 
+        {/* Right column */}
+        <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-red-600">Alert Log</h2>
+            <button
+              onClick={fetchAlerts}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+            >
+              Refresh
+            </button>
+          </div>
 
-        {/* Right column: Alert Log Table */}
-                    <div className="w-2/3 bg-white rounded-xl shadow-lg p-6 overflow-x-auto">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-red-600">Alert Log</h2>
-                        <button
-                          onClick={fetchAlerts}
-                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
-                        >
-                          Refresh
-                        </button>
-                      </div>
-
-                      {alerts.length === 0 ? (
-                        <p className="text-gray-500">No alerts yet.</p>
-                      ) : (
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date & Time</th>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {alerts.map((alert) => (
-                              <tr
-                                key={alert.id}
-                                className={
-                                  alert.type === "panic"
-                                    ? "bg-red-100"
-                                    : alert.type === "suspicious"
-                                    ? "bg-yellow-100"
-                                    : "bg-white"
-                                }
-                              >
-                                <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
-                                <td className="px-4 py-2 text-sm text-gray-800">{alert.message}</td>
-                                <td className="px-4 py-2 text-sm text-gray-800">{formatDateTime(alert.createdAt)}</td>
-                                <td className="px-4 py-2 text-sm font-semibold text-gray-800">
-                                  {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-
-
-        
+          {alerts.length === 0 ? (
+            <p className="text-gray-500">No alerts yet.</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Message</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date & Time</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type of Alert</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {alerts.map((alert) => (
+                  <tr
+                    key={alert.id}
+                    className={
+                      alert.type === "panic"
+                        ? "bg-red-100"
+                        : alert.type === "suspicious"
+                        ? "bg-yellow-100"
+                        : "bg-white"
+                    }
+                  >
+                    <td className="px-4 py-2 text-sm text-gray-800">{alert.name}</td>
+                    <td className="px-4 py-2 text-sm text-gray-800">{alert.message}</td>
+                    <td className="px-4 py-2 text-sm text-gray-800">{formatDateTime(alert.createdAt)}</td>
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-800">
+                      {alert.type === "panic" ? "Lockdown Alert" : "Suspicious Alert"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
+
       {/* Suspicious Alert Modal */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
@@ -289,18 +302,9 @@ export default function AdminPage({ onLogout, loggedInUser }) {
           </div>
         </div>
       )}
-     
-     
-     
+
       {/* Manage Users Modal */}
-{usersModalOpen && <ManageUsers closeModal={() => setUsersModalOpen(false)} />}
+      {usersModalOpen && <ManageUsers closeModal={() => setUsersModalOpen(false)} />}
     </div>
-
-
-
-
-
-
-
   );
 }

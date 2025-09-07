@@ -1,6 +1,13 @@
 // src/MainPage.jsx
-import { useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 import AdminPage from "./AdminPage";
@@ -11,6 +18,7 @@ export default function MainPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loggedInUser, setLoggedInUser] = useState("");
+  const [loggedInUserId, setLoggedInUserId] = useState(""); // Firestore doc ID
 
   const handleAdminLogin = async () => {
     if (!username || !password) {
@@ -29,9 +37,23 @@ export default function MainPage() {
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+
+        if (userData.isLoggedIn) {
+          alert(
+            "This account is already logged in on another device. Please try again later."
+          );
+          return;
+        }
+
+        // ✅ Mark as logged in
+        await updateDoc(doc(db, "users", userDoc.id), { isLoggedIn: true });
+
         setLoggedInUser(username);
+        setLoggedInUserId(userDoc.id);
+
         alert(`Welcome ${username} to BBS - Emergency Lockdown System`);
-        // Clear input fields
         setUsername("");
         setPassword("");
         setPage("admin");
@@ -53,26 +75,53 @@ export default function MainPage() {
     setPassword("");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (loggedInUserId) {
+      try {
+        await updateDoc(doc(db, "users", loggedInUserId), {
+          isLoggedIn: false,
+        });
+      } catch (err) {
+        console.error("Error updating logout:", err);
+      }
+    }
     setLoggedInUser("");
+    setLoggedInUserId("");
     setPage("login");
   };
+
+  // 🔒 Auto logout on tab/browser close
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (loggedInUserId) {
+        try {
+          await updateDoc(doc(db, "users", loggedInUserId), {
+            isLoggedIn: false,
+          });
+        } catch (err) {
+          console.error("Auto logout failed:", err);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [loggedInUserId]);
 
   // Render AdminPage or StudentPage if logged in
   if (page === "admin")
     return <AdminPage onLogout={handleLogout} loggedInUser={loggedInUser} />;
-  if (page === "student") return <StudentPage onLogout={handleLogout} />;
+  if (page === "student")
+    return <StudentPage onLogout={handleLogout} loggedInUser={loggedInUser} />;
 
   // Login Form
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 p-4">
       {/* Logo & System Header */}
       <div className="flex flex-col items-center mb-8">
-        <img
-          src="/school_logo.png"
-          alt="School Logo"
-          className="w-24 h-24 "
-        />
+        <img src="/school_logo.png" alt="School Logo" className="w-24 h-24 " />
         <h1 className="text-3xl font-bold text-blue-600 text-center">
           Belvedere British School
         </h1>
